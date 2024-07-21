@@ -1,0 +1,3 @@
+llama-index
+docx2txt
+python-dotenv
