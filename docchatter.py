@@ -1,6 +1,7 @@
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core.chat_engine.types import BaseChatEngine
 
+
 class DocChatter:
 
     def __init__(self, data_path: str) -> None:

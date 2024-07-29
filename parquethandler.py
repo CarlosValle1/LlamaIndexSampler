@@ -1,15 +1,18 @@
+# parquethandler.py
+
 import duckdb
 from duckdb import DuckDBPyConnection
+import pandas as pd
+
 
 class ParquetHandler:
 
-    def __init__(self, parquet_path: str):
+    def __init__(self, parquet_path: list):
         self.__conn: DuckDBPyConnection = duckdb.connect(':memory:')
-        self.__conn.execute(
-            f"CREATE TABLE parquets AS SELECT * FROM parquet_scan('{parquet_path}')")
-        self.__table_description: list = self.__conn.execute('''
-                                                             DESCRIBE SELECT * FROM parquets;
-                                                             ''').fetchall()
+        for path in parquet_path:
+            self.__conn.execute(f"CREATE TABLE IF NOT EXISTS parquets AS SELECT * FROM parquet_scan('{path}')")
+            self.__conn.execute(f"INSERT INTO parquets SELECT * FROM parquet_scan('{path}')")
+        self.__table_description: list = self.__conn.execute('DESCRIBE SELECT * FROM parquets;').fetchall()
 
     def __enter__(self):
         return self
@@ -17,22 +20,25 @@ class ParquetHandler:
     def __exit__(self, exc_type, exc_value, traceback):
         self.__conn.close()
 
-    def __get_table_description_as_str(self) -> str:
-        answer: list = []
+    def get_schema(self) -> str:
+        schema = "Table 'parquets' has the following columns:\n"
         for column in self.__table_description:
-            answer.append(f'{column[0]} ({column[1]}) ')
-        return ''.join(answer)
+            schema += f"- {column[0]} ({column[1]})\n"
+        return schema
 
-    def __get_tuples(self, sql_sentence: str) -> str:
-        f"""
-        Gets information about the "parquets" as requested by the user.
-        args:
-            sql_sentence (str): A SQL sentence for a table named "parquets" with the following columns:
-            {self.__get_table_description_as_str()}
+    def get_data(self, sql_sentence: str) -> str:
         """
-        print(f'Assitant is tring to execute the following sql sentence: {sql_sentence}')
-        result: list = self.__conn.execute(sql_sentence).fetchmany(size=20)
-        return repr(result)
+        Executes a SQL query on the 'parquets' table and returns the results.
 
-    def get_tools(self) -> list:
-        return [self.__get_tuples]
+        Args:
+            sql_sentence (str): A SQL query to execute on the 'parquets' table.
+
+        Returns:
+            str: A string representation of the query results.
+        """
+        print(f'Assistant is trying to execute the following SQL query: {sql_sentence}')
+        try:
+            result = self.__conn.execute(sql_sentence).fetchdf()
+            return result.to_string()
+        except Exception as e:
+            return f"Error executing SQL query: {str(e)}"

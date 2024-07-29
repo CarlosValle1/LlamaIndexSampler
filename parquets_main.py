@@ -1,3 +1,5 @@
+# parquets_main.py
+
 import os
 from dotenv import dotenv_values
 from llama_index.agent.openai import OpenAIAgent
@@ -14,11 +16,30 @@ os.environ["OPENAI_API_KEY"] = secrets["OPENAI_API_KEY"]
 parquets_directory: str = 'data/as_parquet/'
 parquet_files: list = ['20240601.parquet', '20240602.parquet']
 
-with ParquetHandler(parquet_path=parquets_directory+parquet_files[0]) as parquet_handler:
-    tool = FunctionTool.from_defaults(
-        *parquet_handler.get_tools(),
-    )
+with ParquetHandler(parquet_path=[parquets_directory + file for file in parquet_files]) as parquet_handler:
+    tools = [
+        FunctionTool.from_defaults(
+            fn=parquet_handler.get_data,
+            name="get_parquet_data",
+            description="""
+                Use this function to query the parquet files containing telemetry data organized by sensor sources 
+                (Inlet, Outlet, Return, Supply, Floor, Ambient). Also it contains calculated data for variables like: 
+                RCI high, RCI low and Power IT. As well as it contains information about the entities of the 
+                datacenter's structure with this hierachy schema: Datacenter -> Room -> Row -> Rack -> Sensor. 
+                You can ask for temperature, humidity, pressure, rssi and their averages, minimums, and maximums. 
+                The data is stored in a table named 'parquets'. Use SQL to query the data.
+            """
+        ),
+        FunctionTool.from_defaults(
+            fn=parquet_handler.get_schema,
+            name="get_schema",
+            description="""
+                Use this function to get the schema of the parquet files. 
+                This will help you understand the structure of the data and formulate appropriate SQL queries.
+            """
+        )
+    ]
 
-    agent = OpenAIAgent.from_tools([tool], verbose=True)
+    agent = OpenAIAgent.from_tools(tools, verbose=True)
 
     agent.chat_repl()
