@@ -29,17 +29,19 @@ with ParquetHandler(parquet_path=[parquets_directory + file for file in parquet_
                 You can ask for temperature, humidity, pressure, rssi and their averages, minimums, and maximums. 
                 The data is stored in a table named 'parquets'. Use SQL to query the data.
             """
-        ),
-        FunctionTool.from_defaults(
-            fn=parquet_handler.get_schema,
-            name="get_schema",
-            description="""
-                Use this function to get the schema of the parquet files. 
-                This will help you understand the structure of the data and formulate appropriate SQL queries.
-            """
         )
     ]
 
     agent = OpenAIAgent.from_tools(tools, verbose=True)
 
-    agent.chat_repl()
+    # agent.chat_repl()
+    # Chat loop
+    while True:
+        usr_input: str = input()
+        final_input: str = f"""
+        Take a look at this database schema: {parquet_handler.get_schema()}
+        Now look at the user input: {usr_input}.
+        Solve it!
+        """
+        response = agent.chat(final_input)
+        print(f'Assistant: {response}')
